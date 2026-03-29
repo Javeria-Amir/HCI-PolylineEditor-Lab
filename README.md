@@ -65,6 +65,7 @@ history: {
   polylines: Polyline[]
 }[]
 ```
+### Snapshot of the deployed site
 <img width="1916" height="907" alt="image" src="https://github.com/user-attachments/assets/3450dea5-c020-437c-b48f-db3724bd0010" />
 
 
