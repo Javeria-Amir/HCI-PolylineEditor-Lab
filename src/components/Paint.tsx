@@ -18,6 +18,7 @@ import ShortcutsModal from "./ShortcutsModal";
 import { QuestionCircle } from "react-bootstrap-icons";
 import "./Paint.css";
 import ThemeToggle from "./ThemeToggle";
+import NavBar from "./NavBar";
 
 const Paint = () => {
   const [color, setColor] = useState("#fff");
@@ -292,147 +293,180 @@ const Paint = () => {
     currentShapeRef.current = null;
   };
 
+  //We basically create a hidden canvas in the background, paint it white (or any color), slap your drawing on top of it, and then download that.
+  const handleSaveImage = () => {
+    const stage = stageRef.current;
+    if (!stage) return;
+
+    // 1. Convert the Konva Stage to a standard HTML5 Canvas element
+    // We use pixelRatio: 2 for that "High Quality" sharpness
+    const stageCanvas = stage.toCanvas({ pixelRatio: 2 });
+
+    // 2. Create an off-screen "buffer" canvas in memory
+    const bufferCanvas = document.createElement("canvas");
+    bufferCanvas.width = stageCanvas.width;
+    bufferCanvas.height = stageCanvas.height;
+    const ctx = bufferCanvas.getContext("2d"); //method that initializes the drawing surface.
+
+    if (ctx) {
+      ctx.fillStyle = color === "#fff" ? "#999ca0" : "#ffffff";
+      ctx.fillRect(0, 0, bufferCanvas.width, bufferCanvas.height);
+
+      //Draw your Konva drawing on top of the solid background
+      ctx.drawImage(stageCanvas, 0, 0);
+
+      // Trigger the download from the buffer
+      const link = document.createElement("a");
+      link.download = `canvas-export-${Date.now()}.png`;
+      link.href = bufferCanvas.toDataURL("image/png", 1.0);
+      link.click();
+    }
+  };
+
   return (
-    <Box
-      ref={containerRef}
-      className={`paint-container ${isDark ? "" : "light-mode"}`}
-    >
-      {/* The Modal */}
-      <ShortcutsModal
-        isOpen={showShortcuts}
-        onClose={() => setShowShortcuts(false)}
-      />
-      <Box className="toolbar">
-        {DRAW_OPTIONS.map(({ id, label, icon: Icon }) => (
-          <IconButton
-            key={id}
-            aria-label={label}
-            onClick={() => {
-              setDrawAction(id);
-              switch (id) {
-                case DrawAction.Undo:
-                  onUndo();
-                  break;
-                case DrawAction.Redo:
-                  onRedo();
-                  break;
-                case DrawAction.Refresh:
-                  setPolylines([...polylines]);
-                  break;
-                default:
-                  break;
-              }
-            }}
-            className={`tool-btn ${id === drawAction ? "active" : ""}`}
-          >
-            <Icon />
-          </IconButton>
-        ))}
+    <div className="app-wrapper">
+      <NavBar onClick={handleSaveImage} />
+      <Box
+        ref={containerRef}
+        className={`paint-container ${isDark ? "" : "light-mode"}`}
+      >
+        {/* The Modal */}
+        <ShortcutsModal
+          isOpen={showShortcuts}
+          onClose={() => setShowShortcuts(false)}
+        />
+        <Box className="toolbar">
+          {DRAW_OPTIONS.map(({ id, label, icon: Icon }) => (
+            <IconButton
+              key={id}
+              aria-label={label}
+              onClick={() => {
+                setDrawAction(id);
+                switch (id) {
+                  case DrawAction.Undo:
+                    onUndo();
+                    break;
+                  case DrawAction.Redo:
+                    onRedo();
+                    break;
+                  case DrawAction.Refresh:
+                    setPolylines([...polylines]);
+                    break;
+                  default:
+                    break;
+                }
+              }}
+              className={`tool-btn ${id === drawAction ? "active" : ""}`}
+            >
+              <Icon />
+            </IconButton>
+          ))}
 
-        {/* Color Picker */}
-        <Popover.Root>
-          <Popover.Trigger>
-            <Box className="color-preview" bg={color} />
-          </Popover.Trigger>
-          <Portal>
-            <Popover.Positioner>
-              <Popover.Content width="300px" bg="white" p={2}>
-                <Popover.Arrow />
-                <SketchPicker
-                  color={color}
-                  onChangeComplete={(c) => setColor(c.hex)}
-                />
-              </Popover.Content>
-            </Popover.Positioner>
-          </Portal>
-        </Popover.Root>
-
-        <IconButton className="tool-btn" onClick={onClear}>
-          <XLg />
-        </IconButton>
-        {/* Toggle switch */}
-        <ThemeToggle isDark={isDark} toggle={toggleTheme} />
-        {/* Info Button */}
-        <IconButton
-          className="tool-btn"
-          onClick={() => setShowShortcuts(true)}
-          title="Shortcuts"
-        >
-          <QuestionCircle />
-        </IconButton>
-      </Box>
-      <Box className="canvas-wrapper">
-        <Box className="canvas-box">
-          <Stage
-            ref={stageRef}
-            height={viewHeight}
-            width={viewWidth}
-            // 3 Event-handler methods to draw stuff on the canvas
-            onMouseUp={onStageMouseUp}
-            onMouseDown={onStageMouseDown}
-            onMouseMove={onStageMouseMove}
-          >
-            <Layer>
-              {scribbles.map((scribble) => (
-                <Line
-                  key={scribble.id}
-                  id={scribble.id}
-                  lineCap="round"
-                  lineJoin="round"
-                  stroke={scribble?.color}
-                  strokeWidth={4}
-                  points={scribble.points}
-                />
-              ))}
-              {polylines.map((poly) => (
-                <Fragment key={poly.id}>
-                  {/* LINE */}
-                  <Line stroke={color} strokeWidth={2} points={poly.points} />
-                  <Circle
-                    radius={9}
-                    fill={"#afabee"}
-                    ref={hoverRef}
-                    visible={false}
+          {/* Color Picker */}
+          <Popover.Root>
+            <Popover.Trigger>
+              <Box className="color-preview" bg={color} />
+            </Popover.Trigger>
+            <Portal>
+              <Popover.Positioner>
+                <Popover.Content width="300px" bg="white" p={2}>
+                  <Popover.Arrow />
+                  <SketchPicker
+                    color={color}
+                    onChangeComplete={(c) => setColor(c.hex)}
                   />
+                </Popover.Content>
+              </Popover.Positioner>
+            </Portal>
+          </Popover.Root>
 
-                  {/* POINTS */}
-                  {poly.points.map((_, i) => {
-                    if (i % 2 !== 0) return null;
-                    return (
-                      <Circle
-                        key={`${poly.id}-${i}`}
-                        x={poly.points[i]}
-                        y={poly.points[i + 1]}
-                        radius={4}
-                        fill={"#a78bfa"} // purple
-                        stroke={"#c4b5fd"}
-                        strokeWidth={1}
-                        onMouseOver={(e) => {
-                          e.target.setAttrs({ fill: "#eee" });
-                          document.body.style.cursor = "pointer";
-                          hoverRef?.current?.setAttrs({
-                            x: e.target.x(),
-                            y: e.target.y(),
-                            visible: true,
-                          });
-                        }}
-                        onMouseOut={(e) => {
-                          e.target.setAttrs({ fill: "white" });
-                          document.body.style.cursor = "default";
-                          hoverRef?.current?.setAttrs({
-                            visible: false,
-                          });
-                        }}
-                      />
-                    );
-                  })}
-                </Fragment>
-              ))}
-            </Layer>
-          </Stage>
+          <IconButton className="tool-btn" onClick={onClear}>
+            <XLg />
+          </IconButton>
+          {/* Toggle switch */}
+          <ThemeToggle isDark={isDark} toggle={toggleTheme} />
+          {/* Info Button */}
+          <IconButton
+            className="tool-btn"
+            onClick={() => setShowShortcuts(true)}
+            title="Shortcuts"
+          >
+            <QuestionCircle />
+          </IconButton>
+        </Box>
+        <Box className="canvas-wrapper">
+          <Box className="canvas-box">
+            <Stage
+              ref={stageRef}
+              height={viewHeight}
+              width={viewWidth}
+              // 3 Event-handler methods to draw stuff on the canvas
+              onMouseUp={onStageMouseUp}
+              onMouseDown={onStageMouseDown}
+              onMouseMove={onStageMouseMove}
+            >
+              <Layer>
+                {scribbles.map((scribble) => (
+                  <Line
+                    key={scribble.id}
+                    id={scribble.id}
+                    lineCap="round"
+                    lineJoin="round"
+                    stroke={scribble?.color}
+                    strokeWidth={4}
+                    points={scribble.points}
+                  />
+                ))}
+                {polylines.map((poly) => (
+                  <Fragment key={poly.id}>
+                    {/* LINE */}
+                    <Line stroke={color} strokeWidth={2} points={poly.points} />
+                    <Circle
+                      radius={9}
+                      fill={"#afabee"}
+                      ref={hoverRef}
+                      visible={false}
+                    />
+
+                    {/* POINTS */}
+                    {poly.points.map((_, i) => {
+                      if (i % 2 !== 0) return null;
+                      return (
+                        <Circle
+                          key={`${poly.id}-${i}`}
+                          x={poly.points[i]}
+                          y={poly.points[i + 1]}
+                          radius={4}
+                          fill={"#a78bfa"} // purple
+                          stroke={"#c4b5fd"}
+                          strokeWidth={1}
+                          onMouseOver={(e) => {
+                            e.target.setAttrs({ fill: "#eee" });
+                            document.body.style.cursor = "pointer";
+                            hoverRef?.current?.setAttrs({
+                              x: e.target.x(),
+                              y: e.target.y(),
+                              visible: true,
+                            });
+                          }}
+                          onMouseOut={(e) => {
+                            e.target.setAttrs({ fill: "white" });
+                            document.body.style.cursor = "default";
+                            hoverRef?.current?.setAttrs({
+                              visible: false,
+                            });
+                          }}
+                        />
+                      );
+                    })}
+                  </Fragment>
+                ))}
+              </Layer>
+            </Stage>
+          </Box>
         </Box>
       </Box>
-    </Box>
+    </div>
   );
 };
 

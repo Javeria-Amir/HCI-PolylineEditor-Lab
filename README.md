@@ -45,6 +45,7 @@ The application allows users to draw, edit, and manipulate polylines using **key
 - **Color Pallete (Extra):** Choice of multiple colors
 - **Toggle Dark Mode (Extra):** Switch b/w modes according to preferences
 - **Help (Extra):** Gives instructions to use the app
+- **Download/Save (Extra):** Downloads the canvas drawing as a high-quality image (PNG)
 
 ---
 
@@ -70,25 +71,28 @@ history: {
   polylines: Polyline[]
 }[]
 ```
+
 ## Challenges and Confusions
 
 ### Problems Faced (Coding + Implementation part according to Minal Shahid)
+
 - She faced difficulty in implementing smooth polyline/scribble drawing. The lines were not continuous and appeared jagged or straight instead of following the mouse movement naturally.
 - Managing the canvas rendering was challenging; initially, she wasn’t able to draw anything on the canvas.
 - She encountered issues with layering/UI, where components (like controls or toolbars) appeared behind the canvas instead of on top.
 
 ### Confusions
+
 - She was confused about how to properly store and update the list of points for each polyline while drawing in real time.
 - The difference between drawing a single straight line and a continuous freehand scribble was not clear initially.
 - Managing React state for dynamic drawings (like updating shapes while dragging or deleting points) was confusing.
 
 ### Features She Attempted
+
 - She successfully implemented all the extra features she added and did not face any failures in building them.
 
 ### Snapshot of the deployed site
 
 <img width="1916" height="907" alt="image" src="https://github.com/user-attachments/assets/3450dea5-c020-437c-b48f-db3724bd0010" />
-
 
 ### How to Run
 

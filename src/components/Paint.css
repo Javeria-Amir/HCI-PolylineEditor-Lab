@@ -31,12 +31,73 @@ body {
   color: var(--text-main);
   overflow: hidden;
 }
+/* ===== NAVBAR STYLES ===== */
+.navbar {
+  height: 60px;
+  width: 100%;
+  background: #020617;
+  border-bottom: 1px solid #1e293b;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 24px;
+  box-sizing: border-box;
+}
+
+.logo-section {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 700;
+  font-size: 1.2rem;
+  color: #f8fafc;
+  letter-spacing: -0.5px;
+}
+
+.logo-icon {
+  color: #10b981; /* Matching your active green */
+}
+
+/* Updated Container to account for Navbar height */
+.app-wrapper {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  width: 100vw;
+  overflow-x: hidden;
+}
+
+.paint-container {
+  flex: 1; /* Takes up remaining height after Navbar */
+  display: flex;
+}
+
+/* Style for the Download Button in Navbar */
+.nav-download-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #10b981;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.nav-download-btn:hover {
+  background: #059669;
+  transform: translateY(-1px);
+}
 
 /* ===== MAIN CONTAINER ===== */
 .paint-container {
+  flex: 1;
   display: flex;
   height: 100%;
-  width: 90vw;
+  width: 100%;
   background: var(--bg-main);
   overflow: hidden;
 }
@@ -117,6 +178,8 @@ body {
   --grid-color: rgba(148, 163, 184, 0.1);
   content: "";
   position: absolute;
+  width: 100%;
+  height: 100%;
   inset: 0;
   background-image:
     linear-gradient(var(--grid-color) 1px, transparent 1px),
