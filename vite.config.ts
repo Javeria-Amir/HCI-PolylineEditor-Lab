@@ -7,5 +7,5 @@ export default defineConfig({
   resolve: {
     tsconfigPaths: true,
   },
-  base: "/HCI-Mid-Lab/",
+  base: "/HCI-PolylineEditor-Lab/",
 });
