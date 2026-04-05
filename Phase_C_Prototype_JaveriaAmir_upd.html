@@ -1,0 +1,760 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>PolyLine Editor — Phase C Prototype</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet"/>
+<style>
+  :root {
+    --bg: #0d0f14;
+    --surface: #13161e;
+    --panel: #1a1d27;
+    --border: #252836;
+    --accent: #6c63ff;
+    --accent2: #ff6584;
+    --green: #43e97b;
+    --yellow: #ffd166;
+    --text: #e8eaf0;
+    --muted: #5a5f7a;
+    --radius: 10px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'JetBrains Mono', monospace;
+    background: var(--bg);
+    color: var(--text);
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* ── NAVBAR ── */
+  #navbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 20px;
+    height: 48px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+    z-index: 10;
+  }
+  #navbar .logo {
+    font-family: 'Syne', sans-serif;
+    font-weight: 800;
+    font-size: 16px;
+    letter-spacing: 1px;
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  #navbar .nav-right {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+  }
+  .btn-nav {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    padding: 5px 14px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .btn-nav:hover { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .btn-nav.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .btn-nav.primary:hover { background: #5a52e0; }
+
+  /* ── MAIN LAYOUT ── */
+  #main {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+  }
+
+  /* ── LEFT TOOLBAR ── */
+  #toolbar {
+    width: 56px;
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 12px 0;
+    gap: 4px;
+    flex-shrink: 0;
+  }
+  .tool-btn {
+    width: 40px;
+    height: 40px;
+    border-radius: 8px;
+    border: 1px solid transparent;
+    background: transparent;
+    color: var(--muted);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 17px;
+    transition: all 0.15s;
+    position: relative;
+  }
+  .tool-btn:hover { background: var(--panel); color: var(--text); border-color: var(--border); }
+  .tool-btn.active { background: rgba(108,99,255,0.15); color: var(--accent); border-color: var(--accent); }
+  .tool-btn .badge {
+    position: absolute;
+    bottom: 4px; right: 4px;
+    font-size: 7px;
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--accent);
+    font-weight: 700;
+    letter-spacing: 0;
+  }
+  .tool-sep { width: 28px; height: 1px; background: var(--border); margin: 4px 0; }
+
+  /* Tooltip */
+  .tool-btn::after {
+    content: attr(data-tip);
+    position: absolute;
+    left: 50px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: #1e2130;
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-size: 11px;
+    padding: 4px 10px;
+    border-radius: 6px;
+    white-space: nowrap;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.15s;
+    z-index: 100;
+  }
+  .tool-btn:hover::after { opacity: 1; }
+
+  /* ── CANVAS AREA ── */
+  #canvas-wrap {
+    flex: 1;
+    position: relative;
+    overflow: hidden;
+    background: #0b0d12;
+    background-image:
+      linear-gradient(rgba(108,99,255,0.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(108,99,255,0.04) 1px, transparent 1px);
+    background-size: 32px 32px;
+  }
+  #canvas { display: block; cursor: crosshair; }
+
+  /* Mode cursor overrides */
+  body.mode-move #canvas { cursor: grab; }
+  body.mode-delete #canvas { cursor: cell; }
+
+  /* ── RIGHT SHORTCUTS PANEL ── */
+  #shortcuts {
+    width: 190px;
+    background: var(--surface);
+    border-left: 1px solid var(--border);
+    padding: 16px 14px;
+    flex-shrink: 0;
+    overflow-y: auto;
+  }
+  #shortcuts h3 {
+    font-family: 'Syne', sans-serif;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 12px;
+  }
+  .shortcut-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 8px;
+    font-size: 11px;
+  }
+  .key {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 26px;
+    height: 22px;
+    padding: 0 6px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-bottom: 2px solid var(--border);
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--text);
+    flex-shrink: 0;
+  }
+  .key.active-key { border-color: var(--accent); color: var(--accent); background: rgba(108,99,255,0.1); }
+  .shortcut-desc { color: var(--muted); font-size: 11px; }
+
+  .sc-section { margin-top: 14px; margin-bottom: 6px; }
+
+  /* Polyline list */
+  #poly-list { margin-top: 16px; }
+  #poly-list h3 { font-family: 'Syne', sans-serif; font-size: 11px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: var(--muted); margin-bottom: 10px; }
+  .poly-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 8px;
+    border-radius: 6px;
+    margin-bottom: 4px;
+    font-size: 11px;
+    cursor: pointer;
+    border: 1px solid transparent;
+    transition: all 0.12s;
+  }
+  .poly-item:hover { background: var(--panel); }
+  .poly-item.active-poly { background: rgba(108,99,255,0.1); border-color: var(--accent); }
+  .poly-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+  .poly-name { flex: 1; color: var(--text); }
+  .poly-vcount { color: var(--muted); }
+
+  /* ── STATUS BAR ── */
+  #statusbar {
+    height: 30px;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    padding: 0 16px;
+    gap: 24px;
+    font-size: 11px;
+    color: var(--muted);
+    flex-shrink: 0;
+    white-space: nowrap;
+    overflow: hidden;
+  }
+  .sb-item { display: flex; align-items: center; gap: 6px; white-space: nowrap; }
+  .sb-label { color: var(--muted); }
+  .sb-val { color: var(--text); font-weight: 600; white-space: nowrap; }
+  .sb-mode { color: var(--accent); font-weight: 700; letter-spacing: 1px; }
+  .sb-sep { width: 1px; height: 14px; background: var(--border); flex-shrink: 0; }
+
+  /* ── MODAL ── */
+  #modal-overlay {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.7);
+    backdrop-filter: blur(4px);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 200;
+    opacity: 0; pointer-events: none;
+    transition: opacity 0.2s;
+  }
+  #modal-overlay.open { opacity: 1; pointer-events: all; }
+  #modal {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 28px;
+    width: 420px;
+    max-width: 90vw;
+    transform: translateY(10px);
+    transition: transform 0.2s;
+  }
+  #modal-overlay.open #modal { transform: translateY(0); }
+  #modal h2 { font-family: 'Syne', sans-serif; font-size: 20px; font-weight: 800; margin-bottom: 6px; }
+  #modal p { color: var(--muted); font-size: 12px; margin-bottom: 18px; line-height: 1.6; }
+  #modal .modal-keys { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 18px; }
+  #modal .modal-key-row { display: flex; align-items: center; gap: 8px; font-size: 12px; width: 45%; }
+  #modal .btn-close { background: var(--accent); border: none; color: #fff; font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 700; padding: 10px 24px; border-radius: 8px; cursor: pointer; width: 100%; transition: background 0.15s; }
+  #modal .btn-close:hover { background: #5a52e0; }
+
+  /* ── QUIT CONFIRM ── */
+  #quit-overlay {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.7);
+    backdrop-filter: blur(4px);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 200;
+    opacity: 0; pointer-events: none;
+    transition: opacity 0.2s;
+  }
+  #quit-overlay.open { opacity: 1; pointer-events: all; }
+  #quit-box {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 28px;
+    width: 340px;
+    text-align: center;
+    transform: scale(0.95);
+    transition: transform 0.2s;
+  }
+  #quit-overlay.open #quit-box { transform: scale(1); }
+  #quit-box h3 { font-family: 'Syne', sans-serif; font-size: 18px; font-weight: 800; margin-bottom: 8px; }
+  #quit-box p { color: var(--muted); font-size: 12px; margin-bottom: 20px; }
+  #quit-box .btn-row { display: flex; gap: 10px; }
+  #quit-box .btn-cancel { flex: 1; background: var(--panel); border: 1px solid var(--border); color: var(--text); font-family: 'JetBrains Mono', monospace; font-size: 12px; padding: 10px; border-radius: 8px; cursor: pointer; }
+  #quit-box .btn-confirm { flex: 1; background: var(--accent2); border: none; color: #fff; font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 700; padding: 10px; border-radius: 8px; cursor: pointer; }
+
+  /* ── TOAST ── */
+  #toast {
+    position: fixed;
+    bottom: 48px; left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: var(--panel);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-size: 12px;
+    padding: 8px 20px;
+    border-radius: 20px;
+    opacity: 0;
+    transition: all 0.25s;
+    z-index: 300;
+    pointer-events: none;
+  }
+  #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  /* Color picker swatch */
+  #color-swatch {
+    width: 18px; height: 18px;
+    border-radius: 50%;
+    border: 2px solid var(--border);
+    background: #6c63ff;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+  input[type=color] { display: none; }
+
+  /* Undo depth badge */
+  #undo-depth { font-family: 'JetBrains Mono', monospace; }
+</style>
+</head>
+<body class="mode-draw">
+
+<!-- NAVBAR -->
+<nav id="navbar">
+  <div class="logo">POLYLINE EDITOR</div>
+  <div class="nav-right">
+
+    <button class="btn-nav" onclick="downloadCanvas()">⬇ Download PNG</button>
+    <button class="btn-nav primary" onclick="toggleTheme()">◐ Theme</button>
+  </div>
+</nav>
+
+<!-- MAIN -->
+<div id="main">
+
+  <!-- LEFT TOOLBAR -->
+  <div id="toolbar">
+    <button class="tool-btn active" id="btn-draw" data-tip="Draw — Press B" onclick="setMode('draw')">
+      ✏️<span class="badge">B</span>
+    </button>
+    <button class="tool-btn" id="btn-move" data-tip="Move Vertex — Press M" onclick="setMode('move')">
+      ✥<span class="badge">M</span>
+    </button>
+    <button class="tool-btn" id="btn-delete" data-tip="Delete Vertex — Press D" onclick="setMode('delete')">
+      ✂️<span class="badge">D</span>
+    </button>
+    <div class="tool-sep"></div>
+    <button class="tool-btn" data-tip="Undo — Ctrl+Z" onclick="undo()">↩<span class="badge">Z</span></button>
+    <button class="tool-btn" data-tip="Redo — Ctrl+Y" onclick="redo()">↪<span class="badge">Y</span></button>
+    <div class="tool-sep"></div>
+    <button class="tool-btn" data-tip="Refresh Canvas — Press R" onclick="refresh()">⟳<span class="badge">R</span></button>
+    <button class="tool-btn" data-tip="Clear All — Press Q" onclick="triggerQuit()">⏏<span class="badge">Q</span></button>
+    <div class="tool-sep"></div>
+    <div class="tool-btn" data-tip="Pick Color" onclick="document.getElementById('colorPick').click()" style="cursor:pointer">
+      <div id="color-swatch"></div>
+      <input type="color" id="colorPick" value="#6c63ff" oninput="changeColor(this.value)"/>
+    </div>
+    <div style="flex:1"></div>
+    <button class="tool-btn" data-tip="Help / Shortcuts" onclick="openModal()">❓</button>
+  </div>
+
+  <!-- CANVAS -->
+  <div id="canvas-wrap">
+    <canvas id="canvas"></canvas>
+  </div>
+
+  <!-- RIGHT PANEL -->
+  <div id="shortcuts">
+    <h3>Shortcuts</h3>
+
+    <div class="shortcut-row">
+      <span class="key" id="key-b">B</span>
+      <span class="shortcut-desc">Begin / Draw</span>
+    </div>
+    <div class="shortcut-row">
+      <span class="key" id="key-m">M</span>
+      <span class="shortcut-desc">Move vertex</span>
+    </div>
+    <div class="shortcut-row">
+      <span class="key" id="key-d">D</span>
+      <span class="shortcut-desc">Delete vertex</span>
+    </div>
+    <div class="shortcut-row">
+      <span class="key" id="key-r">R</span>
+      <span class="shortcut-desc">Refresh canvas</span>
+    </div>
+    <div class="shortcut-row">
+      <span class="key" id="key-q">Q</span>
+      <span class="shortcut-desc">Clear / Quit</span>
+    </div>
+
+    <div class="sc-section"></div>
+    <h3>Edit</h3>
+    <div class="shortcut-row">
+      <span class="key">Ctrl Z</span>
+      <span class="shortcut-desc">Undo</span>
+    </div>
+    <div class="shortcut-row">
+      <span class="key">Ctrl Y</span>
+      <span class="shortcut-desc">Redo</span>
+    </div>
+
+    <div id="poly-list">
+      <h3>Polylines</h3>
+      <div id="poly-items"></div>
+    </div>
+  </div>
+
+</div>
+
+
+
+<!-- HELP MODAL -->
+<div id="modal-overlay">
+  <div id="modal">
+    <h2>PolyLine Editor</h2>
+    <p>Use keyboard shortcuts to switch modes, then interact with the canvas using your mouse. All changes can be undone.</p>
+    <div class="modal-keys">
+      <div class="modal-key-row"><span class="key">B</span> Begin / Draw mode</div>
+      <div class="modal-key-row"><span class="key">M</span> Move vertex</div>
+      <div class="modal-key-row"><span class="key">D</span> Delete vertex</div>
+      <div class="modal-key-row"><span class="key">R</span> Refresh canvas</div>
+      <div class="modal-key-row"><span class="key">Q</span> Clear / Quit</div>
+      <div class="modal-key-row"><span class="key">Ctrl Z</span> Undo</div>
+      <div class="modal-key-row"><span class="key">Ctrl Y</span> Redo</div>
+    </div>
+    <p style="font-size:11px;margin-bottom:14px">💡 <strong>HCI Improvement:</strong> This prototype adds a persistent shortcut panel, a status bar, larger vertex hit-areas in Move/Delete mode, hover tooltips, and a quit confirmation dialog — all based on Phase B analysis findings.</p>
+    <button class="btn-close" onclick="closeModal()">Got It — Start Drawing!</button>
+  </div>
+</div>
+
+<!-- QUIT CONFIRM -->
+<div id="quit-overlay">
+  <div id="quit-box">
+    <h3>Clear Canvas?</h3>
+    <p>Your work has been auto-saved to the browser. This will erase all polylines from the canvas.</p>
+    <div class="btn-row">
+      <button class="btn-cancel" onclick="closeQuit()">Cancel</button>
+      <button class="btn-confirm" onclick="confirmQuit()">Clear All</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div id="toast"></div>
+
+<script>
+// ─── STATE ────────────────────────────────────────────────────────────────
+const COLORS = ['#6c63ff','#ff6584','#43e97b','#ffd166','#06d6a0','#ef476f','#118ab2','#ffa552'];
+let polylines = [];          // [{points:[{x,y}], color, id}]
+let activePolyId = null;
+let mode = 'draw';
+let currentColor = '#6c63ff';
+let colorIdx = 0;
+let undoStack = [];
+let redoStack = [];
+let dragVertex = null;       // {polyIdx, vertIdx, ox, oy}
+let isDragging = false;
+let lightTheme = false;
+
+// ─── CANVAS SETUP ─────────────────────────────────────────────────────────
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+const wrap = document.getElementById('canvas-wrap');
+
+function resize() {
+  canvas.width = wrap.clientWidth;
+  canvas.height = wrap.clientHeight;
+  drawAll();
+}
+window.addEventListener('resize', resize);
+
+// ─── DRAW ─────────────────────────────────────────────────────────────────
+function drawAll() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  polylines.forEach((poly, pi) => {
+    if (poly.points.length < 1) return;
+    ctx.strokeStyle = poly.color;
+    ctx.lineWidth = 2;
+    ctx.lineJoin = 'round';
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    poly.points.forEach((p, i) => i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y));
+    ctx.stroke();
+
+    // Vertices
+    poly.points.forEach((p, vi) => {
+      const isActiveMode = mode === 'move' || mode === 'delete';
+      const r = isActiveMode ? 8 : 5;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
+      ctx.fillStyle = poly.color;
+      ctx.globalAlpha = 0.9;
+      ctx.fill();
+      ctx.globalAlpha = 1;
+      // Hit area ring in move/delete mode
+      if (isActiveMode) {
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, 14, 0, Math.PI * 2);
+        ctx.strokeStyle = poly.color + '44';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+      }
+    });
+  });
+  updateStatus();
+  updatePolyList();
+}
+
+// ─── MODE ─────────────────────────────────────────────────────────────────
+function setMode(m) {
+  mode = m;
+  document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
+  const map = {draw:'btn-draw', move:'btn-move', delete:'btn-delete'};
+  if (map[m]) document.getElementById(map[m]).classList.add('active');
+  document.body.className = 'mode-' + m;
+  document.getElementById('sb-mode').textContent = m.toUpperCase();
+  // Highlight shortcut key
+  ['b','m','d','r','q'].forEach(k => {
+    const el = document.getElementById('key-' + k);
+    if (el) el.classList.remove('active-key');
+  });
+  const keyMap = {draw:'b', move:'m', delete:'d'};
+  if (keyMap[m]) document.getElementById('key-' + keyMap[m])?.classList.add('active-key');
+  drawAll();
+}
+
+// ─── MOUSE EVENTS ─────────────────────────────────────────────────────────
+canvas.addEventListener('mousedown', e => {
+  const {x, y} = canvasPos(e);
+  if (mode === 'draw') {
+    saveUndo();
+    let poly = polylines.find(p => p.id === activePolyId);
+    if (!poly) {
+      poly = { points: [], color: currentColor, id: Date.now() };
+      polylines.push(poly);
+      activePolyId = poly.id;
+      colorIdx = (colorIdx + 1) % COLORS.length;
+    }
+    poly.points.push({x, y});
+    drawAll();
+  } else if (mode === 'move') {
+    const hit = findNearestVertex(x, y, 20);
+    if (hit) { dragVertex = hit; isDragging = true; canvas.style.cursor = 'grabbing'; }
+  } else if (mode === 'delete') {
+    const hit = findNearestVertex(x, y, 20);
+    if (hit) {
+      saveUndo();
+      polylines[hit.polyIdx].points.splice(hit.vertIdx, 1);
+      if (polylines[hit.polyIdx].points.length < 2) {
+        if (polylines[hit.polyIdx].id === activePolyId) activePolyId = null;
+        polylines.splice(hit.polyIdx, 1);
+      }
+      drawAll();
+      showToast('Vertex deleted');
+    } else {
+      showToast('No vertex nearby — click closer to a dot');
+    }
+  }
+});
+
+canvas.addEventListener('mousemove', e => {
+  if (isDragging && dragVertex) {
+    const {x, y} = canvasPos(e);
+    polylines[dragVertex.polyIdx].points[dragVertex.vertIdx] = {x, y};
+    drawAll();
+  }
+});
+
+canvas.addEventListener('mouseup', e => {
+  if (isDragging) {
+    saveUndo();
+    isDragging = false;
+    dragVertex = null;
+    canvas.style.cursor = mode === 'move' ? 'grab' : 'crosshair';
+    showToast('Vertex moved');
+  }
+});
+
+// Double-click to start a new polyline
+canvas.addEventListener('dblclick', e => {
+  if (mode === 'draw') {
+    activePolyId = null;
+    currentColor = COLORS[colorIdx % COLORS.length];
+    document.getElementById('color-swatch').style.background = currentColor;
+    showToast('New polyline started');
+  }
+});
+
+function canvasPos(e) {
+  const r = canvas.getBoundingClientRect();
+  return { x: e.clientX - r.left, y: e.clientY - r.top };
+}
+
+function findNearestVertex(x, y, maxDist) {
+  let best = null, bestD = maxDist;
+  polylines.forEach((poly, pi) => {
+    poly.points.forEach((p, vi) => {
+      const d = Math.hypot(p.x - x, p.y - y);
+      if (d < bestD) { bestD = d; best = {polyIdx: pi, vertIdx: vi}; }
+    });
+  });
+  return best;
+}
+
+// ─── KEYBOARD ─────────────────────────────────────────────────────────────
+document.addEventListener('keydown', e => {
+  if (document.getElementById('modal-overlay').classList.contains('open')) return;
+  if (document.getElementById('quit-overlay').classList.contains('open')) return;
+  if (e.ctrlKey && e.key === 'z') { undo(); return; }
+  if (e.ctrlKey && e.key === 'y') { redo(); return; }
+  const actions = {
+    'b': () => { setMode('draw'); showToast('DRAW mode'); },
+    'm': () => { setMode('move'); showToast('MOVE mode — click & drag a vertex'); },
+    'd': () => { setMode('delete'); showToast('DELETE mode — click a vertex to remove'); },
+    'r': () => { refresh(); },
+    'q': () => { triggerQuit(); },
+  };
+  if (actions[e.key.toLowerCase()]) { e.preventDefault(); actions[e.key.toLowerCase()](); }
+});
+
+// ─── ACTIONS ──────────────────────────────────────────────────────────────
+function refresh() {
+  drawAll();
+  showToast('Canvas refreshed ✓');
+  // Flash key
+  const k = document.getElementById('key-r');
+  k.classList.add('active-key');
+  setTimeout(() => k.classList.remove('active-key'), 400);
+}
+
+function triggerQuit() {
+  // Auto-save first
+  try { localStorage.setItem('polyline_autosave', JSON.stringify(polylines)); } catch(e) {}
+  document.getElementById('quit-overlay').classList.add('open');
+}
+function closeQuit() { document.getElementById('quit-overlay').classList.remove('open'); }
+function confirmQuit() {
+  saveUndo();
+  polylines = [];
+  activePolyId = null;
+  drawAll();
+  closeQuit();
+  showToast('Canvas cleared — auto-save preserved ✓');
+}
+
+function undo() {
+  if (undoStack.length === 0) { showToast('Nothing to undo'); return; }
+  redoStack.push(JSON.stringify(polylines));
+  polylines = JSON.parse(undoStack.pop());
+  drawAll();
+  showToast('Undo ↩');
+}
+function redo() {
+  if (redoStack.length === 0) { showToast('Nothing to redo'); return; }
+  undoStack.push(JSON.stringify(polylines));
+  polylines = JSON.parse(redoStack.pop());
+  drawAll();
+  showToast('Redo ↪');
+}
+function saveUndo() {
+  undoStack.push(JSON.stringify(polylines));
+  if (undoStack.length > 20) undoStack.shift();
+  redoStack = [];
+}
+
+function changeColor(v) {
+  currentColor = v;
+  document.getElementById('color-swatch').style.background = v;
+  const poly = polylines.find(p => p.id === activePolyId);
+  if (poly) { poly.color = v; drawAll(); }
+}
+
+function downloadCanvas() {
+  const a = document.createElement('a');
+  a.download = 'polyline_drawing.png';
+  a.href = canvas.toDataURL();
+  a.click();
+  showToast('Downloaded ✓');
+}
+
+function toggleTheme() {
+  lightTheme = !lightTheme;
+  document.documentElement.style.setProperty('--bg', lightTheme ? '#f0f2f8' : '#0d0f14');
+  document.documentElement.style.setProperty('--surface', lightTheme ? '#ffffff' : '#13161e');
+  document.documentElement.style.setProperty('--panel', lightTheme ? '#f5f6fa' : '#1a1d27');
+  document.documentElement.style.setProperty('--border', lightTheme ? '#dde0ef' : '#252836');
+  document.documentElement.style.setProperty('--text', lightTheme ? '#1a1d27' : '#e8eaf0');
+  document.documentElement.style.setProperty('--muted', lightTheme ? '#888aaa' : '#5a5f7a');
+  // Canvas bg
+  document.getElementById('canvas-wrap').style.background = lightTheme
+    ? 'linear-gradient(rgba(108,99,255,0.04) 1px,transparent 1px),linear-gradient(90deg,rgba(108,99,255,0.04) 1px,transparent 1px) #f8f9ff'
+    : '';
+  drawAll();
+}
+
+// ─── STATUS & POLY LIST ───────────────────────────────────────────────────
+function updateStatus() {
+  document.getElementById('sb-polys').textContent = polylines.length;
+  const totalVerts = polylines.reduce((s, p) => s + p.points.length, 0);
+  document.getElementById('sb-verts').textContent = totalVerts;
+  document.getElementById('sb-undo').textContent = undoStack.length + ' / 20';
+}
+
+function updatePolyList() {
+  const el = document.getElementById('poly-items');
+  el.innerHTML = '';
+  if (polylines.length === 0) {
+    el.innerHTML = '<div style="font-size:11px;color:var(--muted);font-style:italic">No polylines yet.<br>Press B and click to draw.</div>';
+    return;
+  }
+  polylines.forEach((poly, i) => {
+    const div = document.createElement('div');
+    div.className = 'poly-item' + (poly.id === activePolyId ? ' active-poly' : '');
+    div.innerHTML = `<div class="poly-dot" style="background:${poly.color}"></div><span class="poly-name">Line ${i+1}</span><span class="poly-vcount">${poly.points.length}v</span>`;
+    div.onclick = () => { activePolyId = poly.id; currentColor = poly.color; document.getElementById('color-swatch').style.background = poly.color; updatePolyList(); };
+    el.appendChild(div);
+  });
+}
+
+// ─── MODAL ────────────────────────────────────────────────────────────────
+function openModal() { document.getElementById('modal-overlay').classList.add('open'); }
+function closeModal() { document.getElementById('modal-overlay').classList.remove('open'); }
+
+// ─── TOAST ────────────────────────────────────────────────────────────────
+let toastTimer;
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 1800);
+}
+
+// ─── INIT ─────────────────────────────────────────────────────────────────
+resize();
+setMode('draw');
+openModal();
+updatePolyList();
+</script>
+</body>
+</html>
